@@ -40,6 +40,7 @@ import { TWEET_STATUS, MAX_X_SCHEDULED_PER_ACCOUNT, type TweetStatus } from "@/c
 import {
   NotFoundError,
   ValidationError,
+  ConflictError,
   CircuitOpenError,
   AppError,
 } from "@/lib/api/errors";
