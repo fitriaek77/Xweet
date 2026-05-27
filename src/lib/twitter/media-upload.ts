@@ -6,6 +6,7 @@
 
 import { X_UPLOAD_BASE, X_BEARER_TOKEN, MEDIA_UPLOAD_CHUNK_SIZE, MEDIA_CATEGORIES } from "@/config/constants";
 import { TwitterApiError } from "@/lib/api/errors";
+import { getHeaders } from "@/lib/twitter/headers";
 import type {
   TwitterMediaUploadInitResponse,
   TwitterMediaUploadFinalizeResponse,
@@ -97,18 +98,30 @@ export async function uploadMedia(
 
 // ─── Upload Headers ───
 
-/** Build headers for upload.x.com (different from API headers). */
-function buildUploadHeaders(
+/** Build headers for upload.x.com — mirrors xFetch()'s anti-detection strategy. */
+async function buildUploadHeaders(
   cookies: string,
   ct0: string
-): Record<string, string> {
-  return {
-    Cookie: cookies,
-    "X-Csrf-Token": ct0,
-    Authorization: `Bearer ${X_BEARER_TOKEN}`,
-    Origin: "https://x.com",
-    Referer: "https://x.com/compose/post",
-  };
+): Promise<Record<string, string>> {
+  // Merge Chrome fingerprint profile (same as xFetch)
+  const headerProfile = await getHeaders();
+  const headers: Record<string, string> = { ...headerProfile };
+
+  // Auth flags (mandatory — X returns 404 without these on upload subdomain)
+  headers["X-Twitter-Auth-Type"] = "OAuth2Session";
+  headers["X-Twitter-Active-User"] = "yes";
+  headers["X-Twitter-Client-Language"] = "en";
+
+  // Override with upload-specific values
+  headers["Authorization"] = `Bearer ${X_BEARER_TOKEN}`;
+  headers["Cookie"] = cookies;
+  headers["X-Csrf-Token"] = ct0;
+  headers["Origin"] = "https://x.com";
+  headers["Referer"] = "https://x.com/compose/post";
+  headers["Cache-Control"] = "no-cache";
+  headers["Pragma"] = "no-cache";
+
+  return headers;
 }
 
 // ─── INIT ───
@@ -134,7 +147,7 @@ async function mediaInit(
 
   const resp = await fetch(`${X_UPLOAD_BASE}/media/upload.json`, {
     method: "POST",
-    headers: buildUploadHeaders(cookies, ct0),
+    headers: await buildUploadHeaders(cookies, ct0),
     body: formData,
     signal: AbortSignal.timeout(5000),
   });
@@ -180,7 +193,7 @@ async function mediaAppendChunks(
 
     const resp = await fetch(`${X_UPLOAD_BASE}/media/upload.json`, {
       method: "POST",
-      headers: buildUploadHeaders(cookies, ct0),
+      headers: await buildUploadHeaders(cookies, ct0),
       body: formData,
       signal: AbortSignal.timeout(10000),
     });
@@ -215,7 +228,7 @@ async function mediaFinalize(
 
   const resp = await fetch(`${X_UPLOAD_BASE}/media/upload.json`, {
     method: "POST",
-    headers: buildUploadHeaders(cookies, ct0),
+    headers: await buildUploadHeaders(cookies, ct0),
     body: formData,
     signal: AbortSignal.timeout(5000),
   });
@@ -268,7 +281,7 @@ async function pollMediaStatus(
       `${X_UPLOAD_BASE}/media/upload.json?command=STATUS&media_id=${mediaId}`,
       {
         method: "GET",
-        headers: buildUploadHeaders(cookies, ct0),
+        headers: await buildUploadHeaders(cookies, ct0),
         signal: AbortSignal.timeout(5000),
       }
     );
