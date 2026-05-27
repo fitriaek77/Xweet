@@ -1,3 +1,14 @@
+<!-- ============================================================
+GENERAL EDITING RULES
+============================================================
+1. NEVER edit code without explicit permission from the owner.
+2. No backward-compat shims — when editing a file, remove any
+backward-compat aliases/re-exports that exist in that file.
+Update all consumers to import from the canonical source instead.
+3. Clean up if needed — when editing a file, remove dead code,
+unused imports, stale comments, and leftover artifacts in that file.
+============================================================ -->
+
 ---
 Task ID: 1
 Agent: dead-code-remover
