@@ -65,24 +65,3 @@ export async function deleteAccount(id: string) {
 
   return db.account.delete({ where: { id } });
 }
-
-export async function incrementFailureCount(id: string) {
-  return db.account.update({
-    where: { id },
-    data: { failureCount: { increment: 1 } },
-  });
-}
-
-export async function resetFailureCount(id: string) {
-  return db.account.update({
-    where: { id },
-    data: { failureCount: 0, circuitOpenUntil: null },
-  });
-}
-
-export async function openCircuit(id: string, cooldownUntil: Date) {
-  return db.account.update({
-    where: { id },
-    data: { failureCount: 0, circuitOpenUntil: cooldownUntil },
-  });
-}

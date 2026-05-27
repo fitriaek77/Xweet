@@ -44,10 +44,6 @@ export const CIRCUIT_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 // ─── Cookie / Auth ───
 export const SESSION_COOKIE_NAME = "session_token";
 export const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-// DEPRECATED: {PLAINTEXT} prefix was used for migration from plaintext cookie storage.
-// Cookies are now always encrypted at write time. This constant is kept for documentation only.
-export const PLAINTEXT_PREFIX = "{PLAINTEXT}";
-export const HASH_PREFIX = "{HASH:";
 
 // ─── Encryption ───
 export const AES_ALGORITHM = "aes-256-gcm";

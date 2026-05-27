@@ -1,6 +1,6 @@
 // Tests for src/lib/api/response.ts
 import { describe, it, expect } from "vitest";
-import { success, created, noContent, badRequest, unauthorized, forbidden, notFound, conflict, handleApiError } from "@/lib/api/response";
+import { success, created, noContent, badRequest, unauthorized, handleApiError } from "@/lib/api/response";
 import { NotFoundError, AuthError, ValidationError } from "@/lib/api/errors";
 
 describe("success", () => {
@@ -51,32 +51,6 @@ describe("unauthorized", () => {
   it("accepts custom message", () => {
     const response = unauthorized("Token expired");
     expect(response.status).toBe(401);
-  });
-});
-
-describe("forbidden", () => {
-  it("returns 403 with default message", () => {
-    const response = forbidden();
-    expect(response.status).toBe(403);
-  });
-});
-
-describe("notFound", () => {
-  it("returns 404 with default message", () => {
-    const response = notFound();
-    expect(response.status).toBe(404);
-  });
-
-  it("accepts custom message", () => {
-    const response = notFound("Account not found");
-    expect(response.status).toBe(404);
-  });
-});
-
-describe("conflict", () => {
-  it("returns 409 with error message", () => {
-    const response = conflict("Already exists");
-    expect(response.status).toBe(409);
   });
 });
 

@@ -42,9 +42,3 @@ export const CREATE_TWEET_FEATURES: Record<string, boolean> = {
   responsive_web_grok_imagine_annotation_enabled: true,
   responsive_web_graphql_timeline_navigation_enabled: true,
 };
-
-/** Features for scheduled tweet ops — empty (no features needed) */
-export const SCHEDULED_OP_FEATURES: Record<string, boolean> = {};
-
-/** Field toggles for CreateTweet — from GraphQL.json metadata */
-export const CREATE_TWEET_FIELD_TOGGLES: Record<string, boolean> = {};

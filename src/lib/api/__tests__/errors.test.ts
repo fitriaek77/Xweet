@@ -5,7 +5,6 @@ import {
   NotFoundError,
   ValidationError,
   AuthError,
-  ForbiddenError,
   ConflictError,
   TwitterApiError,
   CircuitOpenError,
@@ -78,20 +77,6 @@ describe("AuthError", () => {
   it("creates error with custom message", () => {
     const error = new AuthError("Token expired");
     expect(error.message).toBe("Token expired");
-  });
-});
-
-describe("ForbiddenError", () => {
-  it("creates error with default message", () => {
-    const error = new ForbiddenError();
-    expect(error.message).toBe("Forbidden");
-    expect(error.statusCode).toBe(403);
-    expect(error.name).toBe("ForbiddenError");
-  });
-
-  it("creates error with custom message", () => {
-    const error = new ForbiddenError("Access denied");
-    expect(error.message).toBe("Access denied");
   });
 });
 

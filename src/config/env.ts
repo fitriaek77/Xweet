@@ -9,9 +9,6 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   DATABASE_URL_UNPOOLED: z.string().optional(), // Neon direct/unpooled connection (for Prisma CLI migrations)
 
-  // Vercel Blob
-  BLOB_READ_WRITE_TOKEN: z.string().optional(), // Required for Vercel Blob in production
-
   // Security
   ENCRYPTION_KEY: z.string().min(64, "ENCRYPTION_KEY must be 64 hex chars (32 bytes)").optional(),
   ADMIN_PASSWORD: z.string().optional(),
@@ -31,7 +28,6 @@ export function getEnv(): Env {
   const parsed = envSchema.safeParse({
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
-    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     CRON_SECRET: process.env.CRON_SECRET,

@@ -31,18 +31,6 @@ export function unauthorized(message = "Unauthorized"): NextResponse<ErrorData> 
   return NextResponse.json({ ok: false, error: message }, { status: 401 });
 }
 
-export function forbidden(message = "Forbidden"): NextResponse<ErrorData> {
-  return NextResponse.json({ ok: false, error: message }, { status: 403 });
-}
-
-export function notFound(message = "Not found"): NextResponse<ErrorData> {
-  return NextResponse.json({ ok: false, error: message }, { status: 404 });
-}
-
-export function conflict(message: string): NextResponse<ErrorData> {
-  return NextResponse.json({ ok: false, error: message }, { status: 409 });
-}
-
 export function handleApiError(error: unknown): NextResponse<ErrorData> {
   if (error instanceof AppError) {
     return NextResponse.json(

@@ -31,9 +31,6 @@ import {
   createAccount,
   updateAccount,
   deleteAccount,
-  incrementFailureCount,
-  resetFailureCount,
-  openCircuit,
 } from "@/lib/db/queries/accounts";
 
 // ─── Shared fixtures ───
@@ -191,79 +188,5 @@ describe("deleteAccount", () => {
     mockFindUnique.mockResolvedValue(null);
     await expect(deleteAccount("nonexistent")).rejects.toThrow(NotFoundError);
     expect(mockDelete).not.toHaveBeenCalled();
-  });
-});
-
-// ─── incrementFailureCount ───
-describe("incrementFailureCount", () => {
-  it("increments failureCount by 1", async () => {
-    const updated = { ...fakeAccount, failureCount: 1 };
-    mockUpdate.mockResolvedValue(updated);
-
-    const result = await incrementFailureCount("acc-1");
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "acc-1" },
-      data: { failureCount: { increment: 1 } },
-    });
-    expect(result.failureCount).toBe(1);
-  });
-
-  it("does not check if account exists (delegated to Prisma)", async () => {
-    mockUpdate.mockResolvedValue({ ...fakeAccount, failureCount: 3 });
-    await incrementFailureCount("acc-1");
-    // incrementFailureCount does not call findUnique first — it goes straight to update
-    expect(mockFindUnique).not.toHaveBeenCalled();
-  });
-});
-
-// ─── resetFailureCount ───
-describe("resetFailureCount", () => {
-  it("sets failureCount to 0 and clears circuitOpenUntil", async () => {
-    const updated = { ...fakeAccount, failureCount: 0, circuitOpenUntil: null };
-    mockUpdate.mockResolvedValue(updated);
-
-    const result = await resetFailureCount("acc-1");
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "acc-1" },
-      data: { failureCount: 0, circuitOpenUntil: null },
-    });
-    expect(result.failureCount).toBe(0);
-    expect(result.circuitOpenUntil).toBeNull();
-  });
-});
-
-// ─── openCircuit ───
-describe("openCircuit", () => {
-  it("sets circuitOpenUntil and resets failureCount to 0", async () => {
-    const cooldownUntil = new Date("2025-01-01T12:30:00Z");
-    const updated = {
-      ...fakeAccount,
-      failureCount: 0,
-      circuitOpenUntil: cooldownUntil,
-    };
-    mockUpdate.mockResolvedValue(updated);
-
-    const result = await openCircuit("acc-1", cooldownUntil);
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "acc-1" },
-      data: { failureCount: 0, circuitOpenUntil: cooldownUntil },
-    });
-    expect(result.failureCount).toBe(0);
-    expect(result.circuitOpenUntil).toEqual(cooldownUntil);
-  });
-
-  it("uses the provided cooldown date", async () => {
-    const cooldownUntil = new Date("2025-06-01T00:00:00Z");
-    mockUpdate.mockResolvedValue({
-      ...fakeAccount,
-      circuitOpenUntil: cooldownUntil,
-    });
-
-    await openCircuit("acc-1", cooldownUntil);
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ circuitOpenUntil: cooldownUntil }),
-      })
-    );
   });
 });
