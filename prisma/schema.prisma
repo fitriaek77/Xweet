@@ -1,0 +1,120 @@
+// prisma/schema.prisma
+// Xweet — Multi-Account X (Twitter) Scheduler
+// PostgreSQL on Neon (production) / SQLite (local dev)
+// Connection strings are in prisma.config.ts (Prisma 7+)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Single Admin ───
+model Admin {
+  id           String   @id @default(cuid())
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions Session[]
+
+  @@map("admins")
+}
+
+// ─── Sessions ───
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  adminId    String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  admin      Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ─── X Accounts ───
+model Account {
+  id               String    @id @default(cuid())
+  username         String    @unique
+  displayName      String?
+  userId           String?
+  avatarUrl        String?
+  encryptedCookies String                // AES-256-GCM encrypted
+  isActive         Boolean   @default(true)
+  lastPostedAt     DateTime?
+  lastCt0RefreshAt DateTime?
+  cookieUpdatedAt  DateTime?
+  failureCount     Int       @default(0)
+  circuitOpenUntil DateTime?
+  lastFailureAt    DateTime?              // When the last failure occurred (for 30-min window)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tweets Tweet[]
+
+  @@map("accounts")
+}
+
+// ─── Tweets ───
+model Tweet {
+  id                    String   @id @default(cuid())
+  accountId             String
+  content               String
+  scheduledAt           DateTime
+  status                String   @default("scheduled") // scheduled | x_scheduled | sending | sent | failed | cancelled
+  postedAt              DateTime?
+  tweetId               String?                       // X's tweet ID (after posting)
+  scheduledTweetRestId  String?                       // X's rest_id from CreateScheduledTweet
+  failureReason         String?
+  retryCount            Int      @default(0)
+  maxRetries            Int      @default(3)
+
+  // Media
+  mediaKey      String?                              // B2 object key (e.g. "media/clx123-abc456.png"), NULL after sent/cancelled
+  mediaMimeType String?                              // "image/png", "video/mp4", "image/gif"
+  mediaCategory String?                              // "tweet_image", "amplify_video", "tweet_gif"
+  mediaId       String?                              // X media_id (after X upload)
+
+  // Posting lock
+  lockedAt      DateTime?                            // When posting lock was acquired
+  lockedBy      String?                              // Which executor holds the lock
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([accountId, status])
+  @@index([status, lockedAt])                         // For stale recovery queries
+  @@map("tweets")
+}
+
+// ─── Audit Log ───
+model ScheduleLog {
+  id         String   @id @default(cuid())
+  tweetId    String?
+  accountId  String?
+  action     String   // "create", "x_schedule", "cron_dispatch", "post_success", "post_failure", "ct0_refresh", "media_upload", "sync", "cancel", "lock_acquire", "lock_release", "stale_recovery"
+  detail     String?
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([tweetId])
+  @@index([accountId, createdAt])
+  @@map("schedule_logs")
+}
+
+// ─── Settings (Key-Value, flexible, no migrations) ───
+model Setting {
+  key       String @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
