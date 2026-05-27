@@ -7,5 +7,15 @@
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/tick",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/maintenance",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }

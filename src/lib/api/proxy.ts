@@ -27,14 +27,24 @@ export function withAuth(handler: Handler): Handler {
 
 /**
  * Wrap an API route handler with cron secret verification.
- * cron-job.org sends x-cron-secret header on every request.
+ * Supports two sources:
+ * 1. Vercel Cron: sends `Authorization: Bearer <CRON_SECRET>` header
+ * 2. cron-job.org: sends `x-cron-secret` header
  */
 export function withCronSecret(handler: Handler): Handler {
   return async (req, ctx) => {
     const env = getEnv();
-    const secret = req.headers.get("x-cron-secret");
 
-    if (!secret || secret !== env.CRON_SECRET) {
+    // Vercel Cron sends Authorization: Bearer <CRON_SECRET>
+    const authHeader = req.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    // cron-job.org sends x-cron-secret header
+    const customSecret = req.headers.get("x-cron-secret");
+
+    const providedSecret = bearerToken || customSecret;
+
+    if (!providedSecret || providedSecret !== env.CRON_SECRET) {
       return NextResponse.json({ ok: false, error: "Invalid cron secret" }, { status: 403 });
     }
 
