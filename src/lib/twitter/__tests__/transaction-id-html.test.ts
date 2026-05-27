@@ -5,10 +5,6 @@ vi.mock("@/lib/twitter/transaction-id-shared", () => ({
   buildTransactionId: vi.fn().mockReturnValue("mock-tid-output"),
 }));
 
-vi.mock("@/config/constants", () => ({
-  X_BASE_URL: "https://x.com",
-}));
-
 import { generateFromLiveSvg, clearHtmlCache } from "@/lib/twitter/transaction-id-html";
 import { buildTransactionId } from "@/lib/twitter/transaction-id-shared";
 
@@ -248,18 +244,14 @@ describe("transaction-id-html", () => {
       expect(result).toBe("mock-tid-output");
     });
 
-    it("returns null when HTML is too short (< 1000 chars) and not cached", async () => {
-      // Short HTML that won't be cached and has no prior cache
+    it("returns null when HTML has no SVG animation frames (short HTML)", async () => {
+      // Short HTML without SVG frames
       const shortHtml = '<html>verification:"' + VALID_VERIFICATION_KEY + '"</html>';
-      // Fetch returns short HTML → not cached
-      // Next fetch would also fail... but since it's not cached, the next
-      // call would re-fetch. For this test, just return short HTML.
       fetchMock.mockResolvedValueOnce(
         new Response(shortHtml, { status: 200 })
       );
 
-      // Should still attempt parsing with the short HTML
-      // but it won't have SVG frames → returns null
+      // No SVG frames → returns null
       const result = await generateFromLiveSvg("POST", "/test");
       expect(result).toBeNull();
     });

@@ -45,10 +45,12 @@ vi.mock("@/lib/auth/session", () => ({
 // Mock auth/dal
 const mockAdminExists = vi.fn();
 const mockCleanExpiredSessions = vi.fn();
+const mockVerifySession = vi.fn();
 
 vi.mock("@/lib/auth/dal", () => ({
   adminExists: (...args: unknown[]) => mockAdminExists(...args),
   cleanExpiredSessions: (...args: unknown[]) => mockCleanExpiredSessions(...args),
+  verifySession: (...args: unknown[]) => mockVerifySession(...args),
 }));
 
 // Mock rate limiter
@@ -345,15 +347,11 @@ describe("POST /api/auth/change-password", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default: withAuth passes — set up cookie and session verification
-    mockCookieGet.mockReturnValue({ value: "valid-session-token" });
-    mockSessionFindUnique.mockResolvedValue({
+    // Default: withAuth passes — verifySession returns a valid session
+    mockVerifySession.mockResolvedValue({
       id: "session-1",
-      tokenHash: "sha256hash",
       adminId: "admin-1",
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-    mockHashToken.mockResolvedValue("sha256hash");
     mockAdminFindFirst.mockResolvedValue({
       id: "admin-1",
       passwordHash: "$2a$12$oldhash",
@@ -364,7 +362,7 @@ describe("POST /api/auth/change-password", () => {
   });
 
   it("returns 401 when no session cookie is present", async () => {
-    mockCookieGet.mockReturnValue(undefined);
+    mockVerifySession.mockResolvedValue(null);
 
     const req = makeUnauthedRequest({
       currentPassword: "oldpass",
@@ -379,9 +377,7 @@ describe("POST /api/auth/change-password", () => {
   });
 
   it("returns 401 when session token is invalid", async () => {
-    mockCookieGet.mockReturnValue({ value: "invalid-token" });
-    mockHashToken.mockResolvedValue("wrong-hash");
-    mockSessionFindUnique.mockResolvedValue(null);
+    mockVerifySession.mockResolvedValue(null);
 
     const req = makeRequest({
       currentPassword: "oldpass",

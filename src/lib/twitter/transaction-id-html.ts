@@ -5,13 +5,7 @@
 
 import { buildTransactionId } from "@/lib/twitter/transaction-id-shared";
 import { cubicBezier } from "@/lib/twitter/transaction-id-cubic";
-import { X_BASE_URL } from "@/config/constants";
-
-// ─── Local HTML cache (5-min TTL) ───
-
-const HTML_CACHE_MS = 5 * 60 * 1000; // 5 minutes
-let cachedHtml: string | null = null;
-let cachedHtmlAt = 0;
+import { fetchXcomHtml, clearHtmlCache as clearSharedHtmlCache } from "@/lib/cache/html-cache";
 
 // ─── SVG frame type ───
 
@@ -20,41 +14,6 @@ interface SvgFrame {
   index: number;
   /** Bézier control points for this frame */
   points: number[];
-}
-
-// ─── HTML fetch ───
-
-async function fetchXHtml(): Promise<string | null> {
-  // Return cached HTML if fresh
-  if (cachedHtml && Date.now() - cachedHtmlAt < HTML_CACHE_MS) {
-    return cachedHtml;
-  }
-
-  try {
-    const resp = await fetch(X_BASE_URL, {
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      },
-    });
-
-    if (!resp.ok) return null;
-
-    const html = await resp.text();
-
-    // Only cache if we got meaningful HTML
-    if (html.length > 1000) {
-      cachedHtml = html;
-      cachedHtmlAt = Date.now();
-    }
-
-    return html;
-  } catch {
-    return null;
-  }
 }
 
 // ─── Parsing helpers ───
@@ -197,7 +156,7 @@ export async function generateFromLiveSvg(
   method: string,
   path: string,
 ): Promise<string | null> {
-  const html = await fetchXHtml();
+  const html = await fetchXcomHtml();
   if (!html) return null;
 
   // Step 1: Extract verification key from script tags
@@ -236,8 +195,5 @@ export async function generateFromLiveSvg(
   return buildTransactionId(method, path, keyBytes, animationKey);
 }
 
-/** Clear the HTML cache. */
-export function clearHtmlCache(): void {
-  cachedHtml = null;
-  cachedHtmlAt = 0;
-}
+/** Clear the HTML cache (delegates to shared cache). */
+export { clearSharedHtmlCache as clearHtmlCache };

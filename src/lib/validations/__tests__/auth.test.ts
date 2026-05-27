@@ -1,6 +1,6 @@
 // Tests for src/lib/validations/auth.ts
 import { describe, it, expect } from "vitest";
-import { loginSchema, setupSchema, changePasswordSchema } from "@/lib/validations/auth";
+import { loginSchema, changePasswordSchema } from "@/lib/validations/auth";
 
 describe("loginSchema", () => {
   it("validates valid login data", () => {
@@ -15,33 +15,6 @@ describe("loginSchema", () => {
 
   it("rejects missing password", () => {
     const result = loginSchema.safeParse({});
-    expect(result.success).toBe(false);
-  });
-});
-
-describe("setupSchema", () => {
-  it("validates valid setup data", () => {
-    const result = setupSchema.safeParse({ password: "securepassword123" });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects password shorter than 8 chars", () => {
-    const result = setupSchema.safeParse({ password: "short7" });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts password exactly 8 chars", () => {
-    const result = setupSchema.safeParse({ password: "12345678" });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects empty password", () => {
-    const result = setupSchema.safeParse({ password: "" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects missing password", () => {
-    const result = setupSchema.safeParse({});
     expect(result.success).toBe(false);
   });
 });
