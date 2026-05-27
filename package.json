@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS='--unhandled-rejections=none' next dev -p 3000",
-    "build": "npx prisma generate && npx next build",
+    "build": "next build",
+    "vercel-build": "bash scripts/vercel-build.sh",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
