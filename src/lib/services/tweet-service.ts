@@ -273,6 +273,8 @@ export async function publishTweet(
   }
 
   // Handle x_scheduled tweets: cancel the X draft first, then post directly
+  let skipScheduledTransition = false;
+
   if (tweet.status === TWEET_STATUS.X_SCHEDULED) {
     if (tweet.scheduledTweetRestId) {
       try {
@@ -296,6 +298,25 @@ export async function publishTweet(
         error: "Status transition failed — tweet may already be processed",
       };
     }
+    skipScheduledTransition = true; // Already in SENDING, skip the scheduled→sending step
+  } else if (tweet.status === TWEET_STATUS.SCHEDULED) {
+    // Scheduled tweet may have an X draft from a background attemptXScheduling()
+    // that completed on X's side but hasn't transitioned DB status yet.
+    // Always clean up the X draft to prevent double-posting.
+    if (tweet.scheduledTweetRestId) {
+      try {
+        const { cookies: xCookies, ct0: xCt0 } = await getDecryptedAndParsed(tweet.accountId);
+        await deleteScheduledTweet(xCookies, xCt0, tweet.scheduledTweetRestId);
+        await createLog({
+          tweetId,
+          accountId: tweet.accountId,
+          action: "x_schedule_cleanup",
+          detail: `Deleted X draft ${tweet.scheduledTweetRestId} before Post Now (was in "scheduled" status)`,
+        });
+      } catch {
+        // Best-effort — proceed with posting even if X draft delete fails
+      }
+    }
   } else if (tweet.status === TWEET_STATUS.FAILED) {
     // Reset failed → scheduled so we can then transition scheduled → sending
     const resetOk = await transitionTweetStatus(
@@ -313,20 +334,22 @@ export async function publishTweet(
     }
   }
 
-  // Transition to "sending" (now always from SCHEDULED)
-  const transitioned = await transitionTweetStatus(
-    tweetId,
-    TWEET_STATUS.SCHEDULED,
-    TWEET_STATUS.SENDING
-  );
+  // Transition to "sending" (skip if already transitioned from x_scheduled or failed)
+  if (!skipScheduledTransition) {
+    const transitioned = await transitionTweetStatus(
+      tweetId,
+      TWEET_STATUS.SCHEDULED,
+      TWEET_STATUS.SENDING
+    );
 
-  if (!transitioned) {
-    await releasePostingLock(tweetId, executor);
-    return {
-      success: false,
-      tweetId: tweet.id,
-      error: "Status transition failed — may already be sending",
-    };
+    if (!transitioned) {
+      await releasePostingLock(tweetId, executor);
+      return {
+        success: false,
+        tweetId: tweet.id,
+        error: "Status transition failed — may already be sending",
+      };
+    }
   }
 
   try {
