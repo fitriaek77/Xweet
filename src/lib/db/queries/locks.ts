@@ -64,7 +64,7 @@ export async function recoverStaleLocks(): Promise<number> {
 
   for (const tweet of stale) {
     const ok = await db.tweet.updateMany({
-      where: { id: tweet.id, status: tweet.status as string },
+      where: { id: tweet.id, status: tweet.status },
       data: {
         status: "scheduled",
         lockedAt: null,
