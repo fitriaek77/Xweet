@@ -280,8 +280,14 @@ export async function publishTweet(
       try {
         const { cookies: xCookies, ct0: xCt0 } = await getDecryptedAndParsed(tweet.accountId);
         await deleteScheduledTweet(xCookies, xCt0, tweet.scheduledTweetRestId);
-      } catch {
-        // Best-effort — proceed with posting even if X draft delete fails
+      } catch (err) {
+        // Log the error — draft deletion failure can cause double-posting
+        await createLog({
+          tweetId,
+          accountId: tweet.accountId,
+          action: "x_schedule_cleanup",
+          detail: `WARNING: Failed to delete X draft ${tweet.scheduledTweetRestId} before Post Now: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
     }
     // Transition x_scheduled → sending
@@ -313,8 +319,14 @@ export async function publishTweet(
           action: "x_schedule_cleanup",
           detail: `Deleted X draft ${tweet.scheduledTweetRestId} before Post Now (was in "scheduled" status)`,
         });
-      } catch {
-        // Best-effort — proceed with posting even if X draft delete fails
+      } catch (err) {
+        // Log the error — draft deletion failure can cause double-posting
+        await createLog({
+          tweetId,
+          accountId: tweet.accountId,
+          action: "x_schedule_cleanup",
+          detail: `WARNING: Failed to delete X draft ${tweet.scheduledTweetRestId} before Post Now: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
     }
   } else if (tweet.status === TWEET_STATUS.FAILED) {

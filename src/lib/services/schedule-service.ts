@@ -302,6 +302,7 @@ async function syncSingleTweet(tweet: {
   id: string;
   accountId: string;
   scheduledTweetRestId: string | null;
+  scheduledAt?: Date | null;
   mediaKey?: string | null;
 }): Promise<boolean> {
   if (!tweet.scheduledTweetRestId) return false;
@@ -326,30 +327,57 @@ async function syncSingleTweet(tweet: {
   );
 
   if (!found) {
-    // X removed the scheduled draft — it may have been posted or manually deleted.
-    // Mark as failed with a clear message rather than falsely claiming "sent".
+    // X removed the scheduled draft — two possible reasons:
+    //   1. X posted it at the scheduled time → should mark as SENT
+    //   2. User manually deleted it on X.com → should mark as FAILED
+    // Heuristic: if scheduled time has passed, assume X posted it successfully.
+    const isPastDue = tweet.scheduledAt ? tweet.scheduledAt <= new Date() : true;
+
     if (tweet.mediaKey) {
       await b2DeleteMedia(tweet.mediaKey);
     }
 
-    const transitioned = await transitionTweetStatus(
-      tweet.id,
-      TWEET_STATUS.X_SCHEDULED,
-      TWEET_STATUS.FAILED,
-      {
-        failureReason: "X scheduled draft removed — may have been posted or deleted on X's side",
-        mediaKey: null,
-      }
-    );
+    if (isPastDue) {
+      // X likely posted the tweet — mark as SENT
+      const transitioned = await transitionTweetStatus(
+        tweet.id,
+        TWEET_STATUS.X_SCHEDULED,
+        TWEET_STATUS.SENT,
+        {
+          mediaKey: null,
+        }
+      );
 
-    if (transitioned) {
-      await createLog({
-        tweetId: tweet.id,
-        accountId: tweet.accountId,
-        action: "sync",
-        detail: "X scheduled draft no longer found — marked as failed",
-      });
-      return true;
+      if (transitioned) {
+        await createLog({
+          tweetId: tweet.id,
+          accountId: tweet.accountId,
+          action: "sync",
+          detail: "X scheduled draft gone after scheduled time — marked as sent",
+        });
+        return true;
+      }
+    } else {
+      // Draft removed before scheduled time — user likely deleted it manually
+      const transitioned = await transitionTweetStatus(
+        tweet.id,
+        TWEET_STATUS.X_SCHEDULED,
+        TWEET_STATUS.FAILED,
+        {
+          failureReason: "X scheduled draft removed before scheduled time — likely deleted manually on X.com",
+          mediaKey: null,
+        }
+      );
+
+      if (transitioned) {
+        await createLog({
+          tweetId: tweet.id,
+          accountId: tweet.accountId,
+          action: "sync",
+          detail: "X scheduled draft removed before scheduled time — marked as failed",
+        });
+        return true;
+      }
     }
   }
 
