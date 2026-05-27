@@ -25,6 +25,7 @@ vi.mock("@/lib/twitter/headers", () => ({
 
 vi.mock("@/lib/twitter/transaction-id", () => ({
   generateTransactionId: vi.fn().mockResolvedValue("fake-tid-123"),
+  clearTidCache: vi.fn(),
 }));
 
 vi.mock("@/lib/twitter/ct0-refresh", () => ({
@@ -835,11 +836,6 @@ vi.mock("@/lib/twitter/headers", () => ({
     accept: "*/*",
   }),
   clearHeaderCache: vi.fn(),
-}));
-
-vi.mock("@/lib/twitter/transaction-id", () => ({
-  generateTransactionId: vi.fn().mockResolvedValue("fake-tid-123"),
-  clearTidCache: vi.fn(),
 }));
 
 import { clearQueryIdCache } from "@/lib/twitter/query-id";

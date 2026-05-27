@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "dev": "NODE_OPTIONS='--unhandled-rejections=none' next dev -p 3000",
     "build": "next build",
     "vercel-build": "bash scripts/vercel-build.sh",
     "start": "next start",

@@ -113,16 +113,16 @@ export async function scheduleNewTweet(data: {
   // responds quickly. The tweet stays "scheduled" if X scheduling fails,
   // and the cron tick will retry it later.
   // Timeout after 15s to prevent the background task from hanging the server.
-  const xSchedulePromise = attemptXScheduling(tweet.id, accountId);
+  // NOTE: .catch() must be attached immediately to prevent unhandled rejection
+  // killing the process when background X-scheduling fails (e.g. fake cookies).
+  const xSchedulePromise = attemptXScheduling(tweet.id, accountId).catch(() => {
+    // Already logged inside attemptXScheduling — suppress unhandled rejection
+  });
   const timeoutPromise = new Promise<void>((resolve) => {
     setTimeout(() => { resolve(); }, 15_000);
   });
-  Promise.race([xSchedulePromise, timeoutPromise]).catch((err: unknown) => {
-    process.stderr.write(
-      `[scheduleNewTweet] X-scheduling failed for tweet ${tweet.id}: ${
-        err instanceof Error ? err.message : String(err)
-      }\n`
-    );
+  Promise.race([xSchedulePromise, timeoutPromise]).catch(() => {
+    // Suppress any remaining unhandled rejection
   });
 
   return getTweetById(tweet.id);
