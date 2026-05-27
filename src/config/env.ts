@@ -14,6 +14,12 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().optional(),
   CRON_SECRET: z.string().optional(),
 
+  // Backblaze B2 — media storage (optional, required for media uploads)
+  B2_KEY_ID: z.string().optional(),
+  B2_APP_KEY: z.string().optional(),
+  B2_BUCKET_NAME: z.string().optional(),
+  B2_BUCKET_REGION: z.string().default("us-west-004"),
+
   // Node environment
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
@@ -31,6 +37,10 @@ export function getEnv(): Env {
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     CRON_SECRET: process.env.CRON_SECRET,
+    B2_KEY_ID: process.env.B2_KEY_ID,
+    B2_APP_KEY: process.env.B2_APP_KEY,
+    B2_BUCKET_NAME: process.env.B2_BUCKET_NAME,
+    B2_BUCKET_REGION: process.env.B2_BUCKET_REGION,
     NODE_ENV: process.env.NODE_ENV,
   });
 
