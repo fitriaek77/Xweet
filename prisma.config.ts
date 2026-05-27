@@ -4,7 +4,7 @@
 // __dirname doesn't exist in ESM ("module": "esnext") — use relative paths.
 
 import "dotenv/config";
-import { defineConfig } from "prisma/config";
+import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -16,9 +16,6 @@ export default defineConfig({
   datasource: {
     // Direct/unpooled connection for CLI commands (migrations, introspection, push).
     // Falls back to DATABASE_URL for local dev where there's no pooling.
-    url:
-      process.env.DATABASE_URL_UNPOOLED ??
-      process.env.DATABASE_URL ??
-      "file:./dev.db",
+    url: env("DATABASE_URL_UNPOOLED") || env("DATABASE_URL") || "file:./dev.db",
   },
 });
