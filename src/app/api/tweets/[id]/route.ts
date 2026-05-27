@@ -81,7 +81,9 @@ export async function PUT(
       if (parsed.data.scheduledAt) {
         data.scheduledAt = new Date(parsed.data.scheduledAt);
       }
-      if (parsed.data.status === "cancelled") data.status = "cancelled";
+      // Only allow cancellation through the proper cancel endpoint (which cleans up X + B2)
+      // Direct status updates via PUT are restricted to prevent bypassing CAS transitions
+      // if (parsed.data.status === "cancelled") data.status = "cancelled";
 
       const tweet = await dbUpdateTweet(id, data);
       // Strip internal fields before sending to client

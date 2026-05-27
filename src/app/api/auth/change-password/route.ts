@@ -38,6 +38,24 @@ export const POST = withAuth(async (req: NextRequest) => {
       data: { passwordHash: newHash },
     });
 
+    // Invalidate all other sessions (keep current session alive for UX)
+    const { cookies } = await import("next/headers");
+    const { hashToken } = await import("@/lib/auth/session");
+    const { SESSION_COOKIE_NAME } = await import("@/config/constants");
+    const cookieStore = await cookies();
+    const currentToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    let currentTokenHash: string | undefined;
+    if (currentToken) {
+      currentTokenHash = await hashToken(currentToken);
+    }
+    // Delete all sessions except the current one
+    await db.session.deleteMany({
+      where: {
+        adminId: admin.id,
+        ...(currentTokenHash && { NOT: { tokenHash: currentTokenHash } }),
+      },
+    });
+
     return success({ changed: true });
   } catch (error) {
     return handleApiError(error);

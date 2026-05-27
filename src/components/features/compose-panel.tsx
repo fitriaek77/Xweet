@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PenLine, Loader2 } from "lucide-react";
+import { PenLine, Loader2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { AccountSelector } from "./account-selector";
 import { MediaPicker } from "./media-picker";
@@ -21,6 +21,13 @@ function getDefaultScheduleTime(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** Get the minimum datetime-local value (now) for the schedule input. */
+function getMinScheduleTime(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const MAX_CHARS = 280;
 
 function fileToBase64(file: File): Promise<string> {
@@ -28,7 +35,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // Strip data URL prefix (e.g. "data:image/png;base64,")
       const base64 = result.split(",")[1];
       if (base64) resolve(base64);
       else reject(new Error("Failed to convert file to base64"));
@@ -52,15 +58,20 @@ export function ComposePanel() {
     void fetchAccounts();
   }, [fetchAccounts]);
 
-  // Auto-select first active account — derive instead of setState in effect
+  // Auto-select first ACTIVE account — validate that selection is still active
   const effectiveAccount = useMemo(() => {
-    if (selectedAccount) return selectedAccount;
+    if (selectedAccount) {
+      const match = accounts.find((a) => a.id === selectedAccount && a.isActive);
+      if (match) return selectedAccount;
+      // Selected account is no longer active — reset selection
+    }
     const firstActive = accounts.find((a) => a.isActive);
     return firstActive?.id ?? "";
   }, [selectedAccount, accounts]);
 
   const charCount = content.length;
-  const isValid = charCount > 0 && charCount <= MAX_CHARS && effectiveAccount;
+  const isFutureTime = new Date(scheduledAt) > new Date();
+  const isValid = charCount > 0 && charCount <= MAX_CHARS && effectiveAccount && isFutureTime;
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -109,7 +120,7 @@ export function ComposePanel() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Account Selector */}
           <div className="space-y-2">
             <Label htmlFor="account-select">Account</Label>
@@ -142,7 +153,7 @@ export function ComposePanel() {
                 {charCount}/{MAX_CHARS}
               </span>
               {charCount > MAX_CHARS && (
-                <span className="text-destructive">Over limit</span>
+                <span className="text-destructive font-medium">Over limit</span>
               )}
             </div>
           </div>
@@ -159,14 +170,23 @@ export function ComposePanel() {
 
           {/* Schedule Time */}
           <div className="space-y-2">
-            <Label htmlFor="schedule-time">Schedule For</Label>
+            <Label htmlFor="schedule-time" className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              Schedule For
+            </Label>
             <Input
               id="schedule-time"
               type="datetime-local"
               value={scheduledAt}
               onChange={(e) => { setScheduledAt(e.target.value); }}
+              min={getMinScheduleTime()}
               disabled={submitting}
             />
+            {!isFutureTime && scheduledAt && (
+              <p className="text-xs text-destructive">
+                Schedule time must be in the future
+              </p>
+            )}
           </div>
 
           {/* Submit */}

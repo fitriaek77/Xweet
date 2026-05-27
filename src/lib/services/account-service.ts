@@ -95,11 +95,51 @@ export async function modifyAccount(
 
 /** Remove an account and all its tweets. */
 export async function removeAccount(id: string) {
+  // Clean up X-scheduled drafts and B2 media before cascade-deleting
+  const { db } = await import("@/lib/db/db");
+  const tweets = await db.tweet.findMany({
+    where: { accountId: id },
+    select: {
+      id: true,
+      status: true,
+      scheduledTweetRestId: true,
+      mediaKey: true,
+    },
+  });
+
+  // Cancel X-scheduled drafts
+  for (const tweet of tweets) {
+    if (tweet.status === "x_scheduled" && tweet.scheduledTweetRestId) {
+      try {
+        const cookies = await decryptCookies(id);
+        if (cookies) {
+          const parsed = parseCookieString(cookies);
+          if (parsed) {
+            const { deleteScheduledTweet } = await import("@/lib/twitter/scheduled-tweet");
+            await deleteScheduledTweet(cookies, parsed.ct0, tweet.scheduledTweetRestId);
+          }
+        }
+      } catch {
+        // Best-effort — proceed with deletion
+      }
+    }
+
+    // Delete B2 media
+    if (tweet.mediaKey) {
+      try {
+        const { deleteMedia: b2DeleteMedia } = await import("@/lib/storage/b2");
+        await b2DeleteMedia(tweet.mediaKey);
+      } catch {
+        // Best-effort
+      }
+    }
+  }
+
   await deleteAccount(id);
 
   await createLog({
     accountId: id,
-    action: "cancel",
+    action: "delete",
     detail: "Account removed",
   });
 }
@@ -145,7 +185,9 @@ export async function verifyAccount(accountId: string): Promise<{
   }
 
   // Valid — update cookies with fresh ct0
-  await encryptAndStoreCookies(accountId, cookies);
+  const { updateCt0InCookieString } = await import("@/lib/twitter/ct0-refresh");
+  const updatedCookies = updateCt0InCookieString(cookies, result.ct0, result.twid);
+  await encryptAndStoreCookies(accountId, updatedCookies);
   await recordSuccess(accountId);
 
   return {

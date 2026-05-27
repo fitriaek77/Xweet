@@ -51,3 +51,35 @@ export function sanitizeTweet(tweet: TweetRow): SerializedTweet {
 export function sanitizeTweets(tweets: TweetRow[]): SerializedTweet[] {
   return tweets.map(sanitizeTweet);
 }
+
+// ─── Account Serialization ───
+
+type AccountRow = Record<string, unknown>;
+
+export interface SerializedAccount {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isActive: boolean;
+  failureCount: number;
+  circuitOpenUntil: string | null;
+  lastPostedAt: string | null;
+  lastCt0RefreshAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * Strip encryptedCookies and other internal fields from an account
+ * before sending to the client.
+ */
+export function sanitizeAccount(account: AccountRow): SerializedAccount {
+  const {
+    id, username, displayName, avatarUrl, isActive,
+    failureCount, circuitOpenUntil, lastPostedAt, lastCt0RefreshAt, createdAt,
+  } = account;
+  return {
+    id, username, displayName, avatarUrl, isActive,
+    failureCount, circuitOpenUntil, lastPostedAt, lastCt0RefreshAt, createdAt,
+  } as SerializedAccount;
+}

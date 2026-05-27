@@ -215,6 +215,21 @@ async function attemptXScheduling(
         );
         await encryptAndStoreCookies(accountId, result.updatedCookies);
       }
+    } else {
+      // CAS failed — tweet status changed between X API call and DB update.
+      // Clean up the orphaned X draft to prevent ghost tweets.
+      try {
+        const { cookies: freshCookies, ct0: freshCt0 } = await getDecryptedAndParsed(accountId);
+        await deleteScheduledTweet(freshCookies, freshCt0, result.restId);
+        await createLog({
+          tweetId,
+          accountId,
+          action: "x_schedule",
+          detail: `Orphaned X draft ${result.restId} cleaned up (CAS transition failed)`,
+        });
+      } catch {
+        // Best-effort cleanup
+      }
     }
   } catch (error) {
     await createLog({
@@ -256,7 +271,48 @@ export async function publishTweet(
     };
   }
 
-  // Transition to "sending"
+  // Handle x_scheduled tweets: cancel the X draft first, then post directly
+  if (tweet.status === TWEET_STATUS.X_SCHEDULED) {
+    if (tweet.scheduledTweetRestId) {
+      try {
+        const { cookies: xCookies, ct0: xCt0 } = await getDecryptedAndParsed(tweet.accountId);
+        await deleteScheduledTweet(xCookies, xCt0, tweet.scheduledTweetRestId);
+      } catch {
+        // Best-effort — proceed with posting even if X draft delete fails
+      }
+    }
+    // Transition x_scheduled → sending
+    const xTransitioned = await transitionTweetStatus(
+      tweetId,
+      TWEET_STATUS.X_SCHEDULED,
+      TWEET_STATUS.SENDING
+    );
+    if (!xTransitioned) {
+      await releasePostingLock(tweetId, executor);
+      return {
+        success: false,
+        tweetId: tweet.id,
+        error: "Status transition failed — tweet may already be processed",
+      };
+    }
+  } else if (tweet.status === TWEET_STATUS.FAILED) {
+    // Reset failed → scheduled so we can then transition scheduled → sending
+    const resetOk = await transitionTweetStatus(
+      tweetId,
+      TWEET_STATUS.FAILED,
+      TWEET_STATUS.SCHEDULED
+    );
+    if (!resetOk) {
+      await releasePostingLock(tweetId, executor);
+      return {
+        success: false,
+        tweetId: tweet.id,
+        error: "Cannot retry — status transition failed",
+      };
+    }
+  }
+
+  // Transition to "sending" (now always from SCHEDULED)
   const transitioned = await transitionTweetStatus(
     tweetId,
     TWEET_STATUS.SCHEDULED,
@@ -432,16 +488,24 @@ export async function cancelTweet(tweetId: string): Promise<void> {
     }
   }
 
-  // Delete media from B2 (best-effort)
+  // Transition current status to cancelled FIRST (before deleting B2 media)
+  // to avoid data loss if the transition fails due to a race condition.
+  const fromStatus = tweet.status as TweetStatus;
+  const transitioned = await transitionTweetStatus(tweetId, fromStatus, TWEET_STATUS.CANCELLED, {
+    mediaKey: null, // Clear B2 key
+  });
+
+  if (!transitioned) {
+    // Transition failed — don't delete B2 media, it may still be needed
+    throw new ConflictError(
+      `Cannot cancel tweet in status "${tweet.status}" — may already be processed`
+    );
+  }
+
+  // Delete media from B2 (best-effort, only after successful transition)
   if (tweet.mediaKey) {
     await b2DeleteMedia(tweet.mediaKey);
   }
-
-  // Transition current status to cancelled
-  const fromStatus = tweet.status as TweetStatus;
-  await transitionTweetStatus(tweetId, fromStatus, TWEET_STATUS.CANCELLED, {
-    mediaKey: null, // Clear B2 key
-  });
 
   await createLog({
     tweetId,

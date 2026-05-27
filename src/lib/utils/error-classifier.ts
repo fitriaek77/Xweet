@@ -17,7 +17,7 @@ export type RetryDecision = 'clear_and_continue' | 'continue' | 'bail';
 const ERROR_PATTERNS: [RegExp, ErrorClass][] = [
   // Stale cache (query IDs, headers, TID)
   [/code\D+48\b/i, 'stale_cache'],
-  [/HTTP 404/, 'stale_cache'],
+  [/\b404\b/, 'terminal'],  // 404 from X API is terminal (bad endpoint/removed resource)
   [/Query not found/i, 'stale_cache'],
   [/code\D+344\b/, 'stale_cache'],
 

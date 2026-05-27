@@ -10,6 +10,7 @@ import {
   addAccount,
 } from "@/lib/services/account-service";
 import { createAccountSchema } from "@/lib/validations/account";
+import { sanitizeAccount } from "@/lib/api/serialize";
 
 export const GET = withAuth(async () => {
   try {
@@ -36,7 +37,7 @@ export const POST = withAuth(async (req: NextRequest) => {
     }
 
     const account = await addAccount(parsed.data);
-    return created(account);
+    return created(sanitizeAccount(account as Record<string, unknown>));
   } catch (error) {
     return handleApiError(error);
   }

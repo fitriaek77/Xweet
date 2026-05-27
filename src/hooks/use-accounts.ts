@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
 // ─── Types ───
@@ -23,18 +23,25 @@ export interface AccountItem {
 export function useAccounts() {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchAccounts = useCallback(async () => {
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     try {
-      const res = await fetch("/api/accounts");
+      const res = await fetch("/api/accounts", { signal: controller.signal });
       const json = await res.json();
       if (!json.ok) {
         toast.error(json.error || "Failed to load accounts");
         return;
       }
       setAccounts(json.data as AccountItem[]);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Network error loading accounts");
     } finally {
       setLoading(false);
@@ -123,12 +130,14 @@ export function useAccounts() {
       } else {
         toast.error(result.error || "Cookies are invalid");
       }
+      // Refresh account data after verification (updates circuit breaker, lastCt0RefreshAt, etc.)
+      await fetchAccounts();
       return result.valid;
     } catch {
       toast.error("Network error verifying account");
       return false;
     }
-  }, []);
+  }, [fetchAccounts]);
 
   const refreshCt0 = useCallback(async (id: string) => {
     try {

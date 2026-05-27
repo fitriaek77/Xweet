@@ -16,7 +16,7 @@ export type TweetStatus = (typeof TWEET_STATUS)[keyof typeof TWEET_STATUS];
 // Valid CAS transitions: from → to[]
 export const VALID_TRANSITIONS: Record<TweetStatus, TweetStatus[]> = {
   scheduled: ["x_scheduled", "sending", "cancelled"],
-  x_scheduled: ["sent", "cancelled"],
+  x_scheduled: ["sending", "sent", "cancelled"],
   sending: ["sent", "failed", "scheduled"], // scheduled = stale recovery
   sent: [],
   failed: ["scheduled", "cancelled"], // scheduled = retry

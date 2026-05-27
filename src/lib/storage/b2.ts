@@ -40,6 +40,9 @@ export async function uploadMedia(
   mimeType: string
 ): Promise<void> {
   if (!BUCKET) throw new Error("B2_BUCKET_NAME is not configured");
+  if (!process.env.B2_KEY_ID || !process.env.B2_APP_KEY) {
+    throw new Error("B2 credentials (B2_KEY_ID, B2_APP_KEY) are not configured");
+  }
 
   await client.send(
     new PutObjectCommand({
@@ -59,6 +62,9 @@ export async function uploadMedia(
  */
 export async function downloadMedia(key: string): Promise<Buffer> {
   if (!BUCKET) throw new Error("B2_BUCKET_NAME is not configured");
+  if (!process.env.B2_KEY_ID || !process.env.B2_APP_KEY) {
+    throw new Error("B2 credentials (B2_KEY_ID, B2_APP_KEY) are not configured");
+  }
 
   const res = await client.send(
     new GetObjectCommand({

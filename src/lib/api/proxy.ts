@@ -6,6 +6,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/dal";
 import { getEnv } from "@/config/env";
+import crypto from "node:crypto";
 
 type Handler = (req: NextRequest, ctx: unknown) => Promise<NextResponse>;
 
@@ -44,7 +45,10 @@ export function withCronSecret(handler: Handler): Handler {
 
     const providedSecret = bearerToken || customSecret;
 
-    if (!providedSecret || providedSecret !== env.CRON_SECRET) {
+    if (!providedSecret || !env.CRON_SECRET || !crypto.timingSafeEqual(
+      Buffer.from(providedSecret),
+      Buffer.from(env.CRON_SECRET)
+    )) {
       return NextResponse.json({ ok: false, error: "Invalid cron secret" }, { status: 403 });
     }
 

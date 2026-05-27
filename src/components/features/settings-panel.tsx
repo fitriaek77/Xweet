@@ -13,6 +13,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,14 +45,18 @@ function PasswordSection() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changing, setChanging] = useState(false);
 
+  const passwordsMatch = newPassword === confirmPassword;
+  const isLongEnough = newPassword.length >= 8;
+  const canSubmit = currentPassword && newPassword && confirmPassword && passwordsMatch && isLongEnough;
+
   const handleChangePassword = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (newPassword !== confirmPassword) {
+      if (!passwordsMatch) {
         toast.error("Passwords do not match");
         return;
       }
-      if (newPassword.length < 8) {
+      if (!isLongEnough) {
         toast.error("Password must be at least 8 characters");
         return;
       }
@@ -69,7 +74,7 @@ function PasswordSection() {
           return;
         }
 
-        toast.success("Password changed successfully");
+        toast.success("Password changed successfully — other sessions have been logged out");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
@@ -79,7 +84,7 @@ function PasswordSection() {
         setChanging(false);
       }
     },
-    [currentPassword, newPassword, confirmPassword]
+    [currentPassword, newPassword, passwordsMatch, isLongEnough]
   );
 
   return (
@@ -100,6 +105,7 @@ function PasswordSection() {
               value={currentPassword}
               onChange={(e) => { setCurrentPassword(e.target.value); }}
               disabled={changing}
+              autoComplete="current-password"
             />
           </div>
           <div className="space-y-2">
@@ -110,7 +116,14 @@ function PasswordSection() {
               value={newPassword}
               onChange={(e) => { setNewPassword(e.target.value); }}
               disabled={changing}
+              autoComplete="new-password"
             />
+            {newPassword && !isLongEnough && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                At least 8 characters required
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirm-pw">Confirm New Password</Label>
@@ -120,16 +133,18 @@ function PasswordSection() {
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); }}
               disabled={changing}
+              autoComplete="new-password"
             />
+            {confirmPassword && !passwordsMatch && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Passwords do not match
+              </p>
+            )}
           </div>
           <Button
             type="submit"
-            disabled={
-              changing ||
-              !currentPassword ||
-              !newPassword ||
-              !confirmPassword
-            }
+            disabled={changing || !canSubmit}
           >
             {changing && <Loader2 className="h-4 w-4 animate-spin" />}
             {changing ? "Updating…" : "Change Password"}
@@ -184,7 +199,8 @@ function HealthSection() {
             size="sm"
             onClick={checkHealth}
             disabled={loading}
-            className="gap-1"
+            className="gap-1.5"
+            aria-label="Run health check"
           >
             {loading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -200,7 +216,7 @@ function HealthSection() {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="flex items-center gap-2">
               {health.database ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               ) : (
                 <XCircle className="h-4 w-4 text-destructive" />
               )}

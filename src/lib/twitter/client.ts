@@ -95,8 +95,16 @@ export async function xFetch(params: XFetchParams): Promise<XFetchResult> {
 
       const retryData = await safeParseJson(retryResp);
 
+      if (!retryResp.ok) {
+        throw new TwitterApiError(
+          `X API error after ct0 refresh: ${retryResp.status} ${path}`,
+          retryResp.status,
+          typeof retryData === "string" ? retryData : JSON.stringify(retryData)
+        );
+      }
+
       return {
-        ok: retryResp.ok,
+        ok: true,
         status: retryResp.status,
         data: retryData,
         updatedCookies: refreshed.cookies,

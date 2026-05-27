@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import type { TweetStatus } from "@/config/constants";
 
@@ -34,8 +34,14 @@ interface TweetFilters {
 export function useTweets() {
   const [tweets, setTweets] = useState<TweetItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchTweets = useCallback(async (filters?: TweetFilters) => {
+  const fetchTweets = useCallback(async (filters?: TweetFilters): Promise<boolean> => {
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -46,15 +52,19 @@ export function useTweets() {
 
       const qs = params.toString();
       const url = `/api/tweets${qs ? `?${qs}` : ""}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
       const json = await res.json();
       if (!json.ok) {
         toast.error(json.error || "Failed to load tweets");
-        return;
+        return false;
       }
       setTweets(json.data as TweetItem[]);
-    } catch {
+      return true;
+    } catch (err) {
+      // Don't show error for aborted requests
+      if (err instanceof DOMException && err.name === "AbortError") return true;
       toast.error("Network error loading tweets");
+      return false;
     } finally {
       setLoading(false);
     }

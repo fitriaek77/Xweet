@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, RefreshCw } from "lucide-react";
+import { Calendar, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TweetCard } from "./tweet-card";
 import { useTweets } from "@/hooks/use-tweets";
@@ -34,6 +34,7 @@ export function SchedulePanel() {
   const [filterAccount, setFilterAccount] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     void fetchAccounts();
@@ -43,12 +44,20 @@ export function SchedulePanel() {
     const filters: { accountId?: string; status?: string } = {};
     if (filterAccount !== "all") filters.accountId = filterAccount;
     if (filterStatus !== "all") filters.status = filterStatus;
-    void fetchTweets(filters);
+    setFetchError(false);
+    void fetchTweets(filters).then((ok) => {
+      if (!ok) setFetchError(true);
+    });
   }, [filterAccount, filterStatus, fetchTweets]);
 
   useEffect(() => {
-    loadTweets();
-  }, [loadTweets]);
+    // Initial data fetch on mount — fetchTweets updates internal state
+    const filters: { accountId?: string; status?: string } = {};
+    if (filterAccount !== "all") filters.accountId = filterAccount;
+    if (filterStatus !== "all") filters.status = filterStatus;
+    void fetchTweets(filters);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePostNow = useCallback(
     async (id: string) => {
@@ -93,9 +102,10 @@ export function SchedulePanel() {
             size="sm"
             onClick={loadTweets}
             disabled={loading}
-            className="gap-1"
+            className="gap-1.5"
+            aria-label="Refresh tweets"
           >
-            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>
@@ -103,7 +113,7 @@ export function SchedulePanel() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-2 pt-2">
           <Select value={filterAccount} onValueChange={setFilterAccount}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by account">
               <SelectValue placeholder="All Accounts" />
             </SelectTrigger>
             <SelectContent>
@@ -119,7 +129,7 @@ export function SchedulePanel() {
           </Select>
 
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by status">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -140,22 +150,37 @@ export function SchedulePanel() {
               <Skeleton key={i} className="h-28 w-full rounded-lg" />
             ))}
           </div>
+        ) : fetchError && tweets.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <AlertCircle className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Failed to load tweets</p>
+            <Button variant="outline" size="sm" onClick={loadTweets}>
+              Try Again
+            </Button>
+          </div>
         ) : tweets.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             No tweets found. Compose one!
           </p>
         ) : (
-          <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
-            {tweets.map((tweet) => (
-              <TweetCard
-                key={tweet.id}
-                tweet={tweet}
-                onPostNow={handlePostNow}
-                onCancel={handleCancel}
-                onDelete={handleDelete}
-                actionLoading={actionLoading}
-              />
-            ))}
+          <div className="relative">
+            {loading && (
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/20 overflow-hidden z-10">
+                <div className="h-full bg-primary animate-pulse" />
+              </div>
+            )}
+            <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
+              {tweets.map((tweet) => (
+                <TweetCard
+                  key={tweet.id}
+                  tweet={tweet}
+                  onPostNow={handlePostNow}
+                  onCancel={handleCancel}
+                  onDelete={handleDelete}
+                  actionLoading={actionLoading}
+                />
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

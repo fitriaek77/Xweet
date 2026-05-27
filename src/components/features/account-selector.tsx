@@ -23,6 +23,8 @@ export function AccountSelector({
   onChange,
   disabled,
 }: AccountSelectorProps) {
+  const activeAccounts = accounts.filter((a) => a.isActive);
+
   if (accounts.length === 0) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md border border-dashed px-3 py-2">
@@ -32,20 +34,27 @@ export function AccountSelector({
     );
   }
 
+  if (activeAccounts.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md border border-dashed px-3 py-2">
+        <UserCircle className="h-4 w-4" />
+        No active accounts — activate one in Accounts tab
+      </div>
+    );
+  }
+
   return (
     <Select value={value} onValueChange={onChange} {...(disabled !== undefined && { disabled })}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" aria-label="Select account">
         <SelectValue placeholder="Select account" />
       </SelectTrigger>
       <SelectContent>
-        {accounts
-          .filter((a) => a.isActive)
-          .map((account) => (
-            <SelectItem key={account.id} value={account.id}>
-              @{account.username}
-              {account.displayName ? ` — ${account.displayName}` : ""}
-            </SelectItem>
-          ))}
+        {activeAccounts.map((account) => (
+          <SelectItem key={account.id} value={account.id}>
+            @{account.username}
+            {account.displayName ? ` — ${account.displayName}` : ""}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

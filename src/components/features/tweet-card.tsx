@@ -4,6 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Play, XCircle, RotateCcw, Trash2, ImageIcon, Film } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import type { TweetItem } from "@/hooks/use-tweets";
@@ -11,55 +22,33 @@ import type { TweetStatus } from "@/config/constants";
 
 // ─── Status Badge ───
 
-const STATUS_STYLES: Record<TweetStatus, string> = {
-  scheduled: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  x_scheduled: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400",
-  sending: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  sent: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  cancelled: "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400",
-};
+function getStatusStyle(status: TweetStatus): string {
+  switch (status) {
+    case "scheduled": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+    case "x_scheduled": return "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400";
+    case "sending": return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+    case "sent": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
+    case "failed": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    case "cancelled": return "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400";
+  }
+}
 
-const STATUS_LABELS: Record<TweetStatus, string> = {
-  scheduled: "Scheduled",
-  x_scheduled: "X Scheduled",
-  sending: "Sending",
-  sent: "Sent",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
+function getStatusLabel(status: TweetStatus): string {
+  switch (status) {
+    case "scheduled": return "Scheduled";
+    case "x_scheduled": return "X Scheduled";
+    case "sending": return "Sending";
+    case "sent": return "Sent";
+    case "failed": return "Failed";
+    case "cancelled": return "Cancelled";
+  }
+}
 
 function StatusBadge({ status }: { status: TweetStatus }) {
-  let style: string;
-  let label: string;
-  switch (status) {
-    case "scheduled":
-      style = STATUS_STYLES.scheduled;
-      label = STATUS_LABELS.scheduled;
-      break;
-    case "x_scheduled":
-      style = STATUS_STYLES.x_scheduled;
-      label = STATUS_LABELS.x_scheduled;
-      break;
-    case "sending":
-      style = STATUS_STYLES.sending;
-      label = STATUS_LABELS.sending;
-      break;
-    case "sent":
-      style = STATUS_STYLES.sent;
-      label = STATUS_LABELS.sent;
-      break;
-    case "failed":
-      style = STATUS_STYLES.failed;
-      label = STATUS_LABELS.failed;
-      break;
-    case "cancelled":
-      style = STATUS_STYLES.cancelled;
-      label = STATUS_LABELS.cancelled;
-      break;
-  }
+  const style = getStatusStyle(status);
+  const label = getStatusLabel(status);
   return (
-    <Badge variant="outline" className={`text-[11px] ${style}`}>
+    <Badge variant="outline" className={`text-[11px] font-medium ${style}`}>
       {label}
     </Badge>
   );
@@ -89,7 +78,7 @@ export function TweetCard({
   const canCancel =
     tweet.status === "scheduled" || tweet.status === "x_scheduled";
   const canPostNow =
-    tweet.status === "scheduled" || tweet.status === "failed";
+    tweet.status === "scheduled" || tweet.status === "x_scheduled" || tweet.status === "failed";
   const canDelete =
     tweet.status === "sent" ||
     tweet.status === "cancelled" ||
@@ -99,7 +88,7 @@ export function TweetCard({
   const scheduledDate = new Date(tweet.scheduledAt);
 
   return (
-    <Card className="py-0">
+    <Card className="py-0 transition-colors hover:bg-muted/30">
       <CardContent className="p-4 gap-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -115,7 +104,7 @@ export function TweetCard({
           <StatusBadge status={tweet.status} />
         </div>
 
-        <p className="text-sm whitespace-pre-wrap break-words">
+        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
           {tweet.content.length > 200
             ? tweet.content.slice(0, 200) + "…"
             : tweet.content}
@@ -155,6 +144,7 @@ export function TweetCard({
                 onClick={() => onPostNow?.(tweet.id)}
                 disabled={isLoading}
                 className="h-7 text-xs gap-1"
+                aria-label="Post tweet now"
               >
                 <Play className="h-3 w-3" />
                 Post Now
@@ -167,6 +157,7 @@ export function TweetCard({
                 onClick={() => onCancel?.(tweet.id)}
                 disabled={isLoading}
                 className="h-7 text-xs gap-1"
+                aria-label="Cancel scheduled tweet"
               >
                 <XCircle className="h-3 w-3" />
                 Cancel
@@ -179,22 +170,44 @@ export function TweetCard({
                 onClick={() => onPostNow?.(tweet.id)}
                 disabled={isLoading}
                 className="h-7 text-xs gap-1"
+                aria-label="Retry posting tweet"
               >
                 <RotateCcw className="h-3 w-3" />
                 Retry
               </Button>
             )}
             {canDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete?.(tweet.id)}
-                disabled={isLoading}
-                className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-3 w-3" />
-                Delete
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isLoading}
+                    className="h-7 text-xs gap-1 text-destructive hover:text-destructive ml-auto"
+                    aria-label="Delete tweet"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this tweet?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove the tweet record. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete?.(tweet.id)}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         )}

@@ -12,6 +12,7 @@ import {
   removeAccount,
 } from "@/lib/services/account-service";
 import { updateAccountSchema } from "@/lib/validations/account";
+import { sanitizeAccount } from "@/lib/api/serialize";
 
 export async function GET(
   _req: NextRequest,
@@ -21,7 +22,7 @@ export async function GET(
     try {
       const { id } = await params;
       const account = await getAccount(id);
-      return success(account);
+      return success(sanitizeAccount(account as Record<string, unknown>));
     } catch (error) {
       return handleApiError(error);
     }
@@ -49,7 +50,7 @@ export async function PUT(
       }
 
       const account = await modifyAccount(id, parsed.data);
-      return success(account);
+      return success(sanitizeAccount(account as Record<string, unknown>));
     } catch (error) {
       return handleApiError(error);
     }

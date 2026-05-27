@@ -43,8 +43,12 @@ export async function findStaleLocks() {
 
   return db.tweet.findMany({
     where: {
-      status: "sending",
-      lockedAt: { lt: threshold },
+      OR: [
+        // Stale locks in "sending" status
+        { status: "sending", lockedAt: { lt: threshold } },
+        // Stale locks in "scheduled" status (crash between lock + transition)
+        { status: "scheduled", lockedAt: { lt: threshold }, lockedBy: { not: null } },
+      ],
     },
     include: { account: { select: { username: true } } },
   });
@@ -60,8 +64,13 @@ export async function recoverStaleLocks(): Promise<number> {
 
   for (const tweet of stale) {
     const ok = await db.tweet.updateMany({
-      where: { id: tweet.id, status: "sending" },
-      data: { status: "scheduled", lockedAt: null, lockedBy: null },
+      where: { id: tweet.id, status: tweet.status as string },
+      data: {
+        status: "scheduled",
+        lockedAt: null,
+        lockedBy: null,
+        retryCount: { increment: 1 },
+      },
     });
     if (ok.count > 0) recovered++;
   }

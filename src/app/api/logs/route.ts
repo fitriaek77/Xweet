@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
         tweetId: searchParams.get("tweetId") ?? undefined,
         accountId: searchParams.get("accountId") ?? undefined,
         action: searchParams.get("action") ?? undefined,
-        limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined,
-        offset: searchParams.get("offset") ? Number(searchParams.get("offset")) : undefined,
+        limit: searchParams.get("limit") ? Math.max(1, Number(searchParams.get("limit")) || 50) : undefined,
+        offset: searchParams.get("offset") ? Math.max(0, Number(searchParams.get("offset")) || 0) : undefined,
       });
       return success(logs);
     } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Film, X, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,32 @@ interface MediaPickerProps {
 
 export function MediaPicker({ file, onChange, disabled }: MediaPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevUrlRef = useRef<string | null>(null);
+
+  // Derive preview URL from file
+  const previewUrl = useMemo(() => {
+    if (file && !file.type.startsWith("video/")) {
+      return URL.createObjectURL(file);
+    }
+    return null;
+  }, [file]);
+
+  // Revoke previous Object URL when it changes
+  useEffect(() => {
+    if (prevUrlRef.current && prevUrlRef.current !== previewUrl) {
+      URL.revokeObjectURL(prevUrlRef.current);
+    }
+    prevUrlRef.current = previewUrl;
+  }, [previewUrl]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (prevUrlRef.current) {
+        URL.revokeObjectURL(prevUrlRef.current);
+      }
+    };
+  }, []);
 
   const handleFile = useCallback(
     (f: File) => {
@@ -66,7 +92,6 @@ export function MediaPicker({ file, onChange, disabled }: MediaPickerProps) {
   );
 
   const isVideo = file?.type.startsWith("video/");
-  const previewUrl = file && !isVideo ? URL.createObjectURL(file) : null;
 
   return (
     <div className="space-y-2">
@@ -74,9 +99,10 @@ export function MediaPicker({ file, onChange, disabled }: MediaPickerProps) {
         <div
           onDrop={handleDrop}
           onDragOver={(e) => { e.preventDefault(); }}
-          className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center transition-colors hover:border-muted-foreground/50"
+          className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 p-6 text-center transition-colors hover:border-muted-foreground/40 hover:bg-muted/30 cursor-pointer"
+          onClick={() => inputRef.current?.click()}
         >
-          <Upload className="h-8 w-8 text-muted-foreground" />
+          <Upload className="h-7 w-7 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             Drop image, video, or GIF here
           </p>
@@ -85,13 +111,14 @@ export function MediaPicker({ file, onChange, disabled }: MediaPickerProps) {
             variant="outline"
             size="sm"
             disabled={disabled}
-            onClick={() => inputRef.current?.click()}
+            onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+            aria-label="Browse for media file"
           >
             Browse
           </Button>
         </div>
       ) : (
-        <div className="relative rounded-lg border bg-muted/30 p-3">
+        <div className="relative rounded-lg border bg-muted/20 p-3">
           <Button
             type="button"
             variant="ghost"
@@ -99,15 +126,15 @@ export function MediaPicker({ file, onChange, disabled }: MediaPickerProps) {
             className="absolute right-2 top-2 h-7 w-7"
             disabled={disabled}
             onClick={() => { onChange(null); }}
+            aria-label="Remove media"
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">Remove media</span>
           </Button>
 
           <div className="flex items-start gap-3">
             {isVideo ? (
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-muted">
-                <Film className="h-8 w-8 text-muted-foreground" />
+                <Film className="h-7 w-7 text-muted-foreground" />
               </div>
             ) : previewUrl ? (
               <img

@@ -58,7 +58,7 @@ export function AccountsPanel() {
   const [newCookies, setNewCookies] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [adding, setAdding] = useState(false);
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [actionIds, setActionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     void fetchAccounts();
@@ -82,36 +82,36 @@ export function AccountsPanel() {
 
   const handleToggleActive = useCallback(
     async (id: string, isActive: boolean) => {
-      setActionId(id);
+      setActionIds((prev) => new Set(prev).add(id));
       await updateAccount(id, { isActive: !isActive });
-      setActionId(null);
+      setActionIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     },
     [updateAccount]
   );
 
   const handleVerify = useCallback(
     async (id: string) => {
-      setActionId(id);
+      setActionIds((prev) => new Set(prev).add(id));
       await verifyAccount(id);
-      setActionId(null);
+      setActionIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     },
     [verifyAccount]
   );
 
   const handleRefreshCt0 = useCallback(
     async (id: string) => {
-      setActionId(id);
+      setActionIds((prev) => new Set(prev).add(id));
       await refreshCt0(id);
-      setActionId(null);
+      setActionIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     },
     [refreshCt0]
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
-      setActionId(id);
+      setActionIds((prev) => new Set(prev).add(id));
       await deleteAccount(id);
-      setActionId(null);
+      setActionIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     },
     [deleteAccount]
   );
@@ -216,7 +216,7 @@ export function AccountsPanel() {
             <AccountCard
               key={account.id}
               account={account}
-              isActive={actionId === account.id}
+              isActive={actionIds.has(account.id)}
               onToggleActive={handleToggleActive}
               onVerify={handleVerify}
               onRefreshCt0={handleRefreshCt0}

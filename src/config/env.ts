@@ -12,7 +12,7 @@ const envSchema = z.object({
   // Security
   ENCRYPTION_KEY: z.string().min(64, "ENCRYPTION_KEY must be 64 hex chars (32 bytes)").optional(),
   ADMIN_PASSWORD: z.string().optional(),
-  CRON_SECRET: z.string().optional(),
+  CRON_SECRET: z.string().min(1, "CRON_SECRET is required in production").optional(),
 
   // Backblaze B2 — media storage (optional, required for media uploads)
   B2_KEY_ID: z.string().optional(),
@@ -27,6 +27,7 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 let _env: Env | null = null;
+let _envWarned = false;
 
 export function getEnv(): Env {
   if (_env) return _env;
@@ -52,5 +53,17 @@ export function getEnv(): Env {
   }
 
   _env = parsed.data;
+
+  // Runtime warnings for optional-but-recommended vars
+  if (!_envWarned && process.env.NODE_ENV === "production") {
+    _envWarned = true;
+    if (!_env.ENCRYPTION_KEY) {
+      process.stderr.write("[env] WARNING: ENCRYPTION_KEY is not set — cookie encryption will fail at runtime\n");
+    }
+    if (!_env.CRON_SECRET) {
+      process.stderr.write("[env] WARNING: CRON_SECRET is not set — cron endpoints will reject all requests\n");
+    }
+  }
+
   return _env;
 }

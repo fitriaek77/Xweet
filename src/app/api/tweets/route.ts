@@ -15,8 +15,8 @@ export const GET = withAuth(async (req: NextRequest) => {
     const offsetParam = searchParams.get("offset");
     const accountId = searchParams.get("accountId");
     const status = searchParams.get("status");
-    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
-    const offset = offsetParam ? parseInt(offsetParam, 10) : undefined;
+    const limit = limitParam ? Math.max(1, parseInt(limitParam, 10) || 50) : undefined;
+    const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10) || 0) : undefined;
 
     const tweets = await listTweets({
       ...(accountId != null && { accountId }),

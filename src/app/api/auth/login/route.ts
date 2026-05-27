@@ -12,7 +12,10 @@ import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "@/lib/api/r
 export async function POST(req: NextRequest) {
   try {
     // ─── Rate limiting ───
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    // Use the LAST entry in x-forwarded-for (set by our reverse proxy),
+    // not the first (which can be spoofed by the client).
+    const xff = req.headers.get("x-forwarded-for");
+    const ip = (xff ? xff.split(",").pop()?.trim() : undefined)
       || req.headers.get("x-real-ip")
       || "unknown";
 
